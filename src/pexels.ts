@@ -10,7 +10,9 @@ interface PexelsMaterialParams {
   locale?: string;
   page?: number;
   per_page?: number;
+  perPage?: number;
   apiKey?: string;
+  verbose?: boolean;
 }
 
 async function getPexelsMaterial({
@@ -21,8 +23,10 @@ async function getPexelsMaterial({
   color,
   locale,
   page = 1,
-  per_page = 20,
+  per_page,
+  perPage = 20,
   apiKey = '',
+  verbose = false,
 }: PexelsMaterialParams): Promise<MediaData[]> {
   const baseUrl =
     mediaType === 'video'
@@ -36,8 +40,15 @@ async function getPexelsMaterial({
     color,
     locale,
     page,
-    per_page,
+    per_page: per_page || perPage,
   };
+
+  if (verbose) {
+    console.log(`Sending request to Pexels API for ${mediaType}s:`, {
+      url: baseUrl,
+      params,
+    });
+  }
 
   try {
     const response = await axios.get(baseUrl, {
@@ -49,11 +60,18 @@ async function getPexelsMaterial({
 
     const result = response.data;
 
+    if (verbose) {
+      console.log('Received response from Pexels API:', result);
+    }
+
     if (
       !result ||
       (mediaType === 'photo' && !result.photos) ||
       (mediaType === 'video' && !result.videos)
     ) {
+      if (verbose) {
+        console.log('No media found in the Pexels API response');
+      }
       return [];
     }
 
@@ -69,9 +87,16 @@ async function getPexelsMaterial({
       height: item.height,
     }));
 
+    if (verbose) {
+      console.log(`Processed ${media.length} ${mediaType}s from Pexels API`);
+    }
+
     return media;
   } catch (error: any) {
     console.error('Error fetching media from Pexels:', error.message);
+    if (verbose) {
+      console.error('Detailed error:', error);
+    }
     return [];
   }
 }

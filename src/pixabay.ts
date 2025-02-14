@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { MediaData } from './data';
 
-const PIXABAY_API_URL: string = 'https://pixabay.com/api/videos/';
+const PIXABAY_API_URL: string = 'https://pixabay.com/api/';
 
 interface PixabayMaterialParams {
   keyword: string;
@@ -14,7 +14,9 @@ interface PixabayMaterialParams {
   order?: string;
   page?: number;
   perPage?: number;
+  per_page?: number;
   apiKey?: string;
+  verbose?: boolean;
 }
 
 async function getPixabayMaterial({
@@ -27,12 +29,14 @@ async function getPixabayMaterial({
   safeSearch = false,
   order = 'popular',
   page = 1,
+  per_page,
   perPage = 20,
   apiKey = '',
+  verbose = false,
 }: PixabayMaterialParams): Promise<MediaData[] | null> {
   const params: Record<string, any> = {
     key: apiKey,
-    q: keyword,
+    q: encodeURIComponent(keyword),
     lang,
     min_width: minWidth,
     min_height: minHeight,
@@ -40,18 +44,25 @@ async function getPixabayMaterial({
     safesearch: safeSearch,
     order,
     page,
-    per_page: perPage,
+    per_page: per_page || perPage,
   };
 
+  let url = PIXABAY_API_URL;
   if (mediaType === 'video') {
-    params.video_type = 'all';
-  } else if (mediaType === 'photo') {
-    params.image_type = 'all';
+    url += 'videos/';
+  }
+
+  if (verbose) {
+    console.log('Sending request to Pixabay API with params:', params);
   }
 
   try {
-    const response = await axios.get(PIXABAY_API_URL, { params });
+    const response = await axios.get(url, { params });
     const result = response.data;
+
+    if (verbose) {
+      console.log('Received response from Pixabay API:', result);
+    }
 
     if (!result || !result.hits || !result.hits.length) return null;
 
@@ -61,6 +72,11 @@ async function getPixabayMaterial({
       url: mediaType === 'video' ? item.videos.large.url : item.largeImageURL,
       duration: mediaType === 'video' ? item.duration : null,
       mediaType: mediaType === 'video' ? 'video' : 'photo',
+      width: mediaType === 'video' ? item.videos.large.width : item.imageWidth,
+      height:
+        mediaType === 'video' ? item.videos.large.height : item.imageHeight,
+      thumbnailUrl:
+        mediaType === 'video' ? item.videos.large.thumbnail : item.previewURL,
     }));
 
     return media;
